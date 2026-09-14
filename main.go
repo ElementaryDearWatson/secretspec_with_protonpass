@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/secretspec/secretspec-go"
 )
 
 func main() {
@@ -15,11 +13,11 @@ func main() {
 		port = "8080"
 	}
 
-	// Fetch API key securely using SecretSpec with Proton Pass provider
-	apiKey, err := secretspec.GetSecret("API_KEY")
-	if err != nil {
-		log.Printf("Warning: API_KEY not resolved via SecretSpec (Proton Pass), falling back to env: %v", err)
-		apiKey = os.Getenv("API_KEY")
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		log.Println("🔴 WARNING: API_KEY is missing! Run with 'secretspec run --' to inject secrets.")
+	} else {
+		log.Printf("🟢 SUCCESS: API_KEY successfully resolved! (Key Length: %d)", len(apiKey))
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -28,10 +26,10 @@ func main() {
 
 	http.HandleFunc("/api-data", func(w http.ResponseWriter, r *http.Request) {
 		if apiKey == "" {
-			http.Error(w, "API Key missing", http.StatusInternalServerError)
+			http.Error(w, "❌ Error 500: API Key missing from environment", http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "SecretSpec loaded API Key from Proton Pass successfully (length: %d)", len(apiKey))
+		fmt.Fprintf(w, "✅ SecretSpec active: API Key loaded successfully (Length: %d)", len(apiKey))
 	})
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
