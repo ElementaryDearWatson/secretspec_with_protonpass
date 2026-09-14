@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	secretspec "github.com/cachix/secretspec/secretspec-go"
 )
 
 func main() {
@@ -15,15 +13,11 @@ func main() {
 		port = "8080"
 	}
 
-	// Resolve secrets using SecretSpec builder
-	resolved, err := secretspec.New().Load()
-	var apiKey string
-	if err != nil {
-		log.Printf("Warning: SecretSpec resolution failed, falling back to env: %v", err)
-		apiKey = os.Getenv("API_KEY")
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		log.Println("🔴 WARNING: API_KEY is missing! Run with 'secretspec run --' to inject secrets.")
 	} else {
-		defer resolved.Close()
-		apiKey = resolved.Secrets["API_KEY"].Get()
+		log.Printf("🟢 SUCCESS: API_KEY successfully resolved! (Key Length: %d)", len(apiKey))
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -32,10 +26,10 @@ func main() {
 
 	http.HandleFunc("/api-data", func(w http.ResponseWriter, r *http.Request) {
 		if apiKey == "" {
-			http.Error(w, "API Key missing", http.StatusInternalServerError)
+			http.Error(w, "❌ Error 500: API Key missing from environment", http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "SecretSpec loaded API Key successfully (length: %d)", len(apiKey))
+		fmt.Fprintf(w, "✅ SecretSpec active: API Key loaded successfully (Length: %d)", len(apiKey))
 	})
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
