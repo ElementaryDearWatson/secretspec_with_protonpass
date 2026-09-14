@@ -1,0 +1,30 @@
+# Multi-stage build for Go app using SecretSpec & Proton Pass CLI
+FROM golang:1.27-alpine3.24 AS builder
+
+WORKDIR /app
+
+COPY go.mod ./
+RUN go mod download
+
+COPY main.go ./
+
+# Build static binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates curl bash
+
+# Install pass-cli for Proton Pass secret retrieval
+RUN curl -fsSL https://github.com/protonpass/pass-cli/releases/latest/download/pass-cli-linux-amd64 -o /usr/local/bin/pass-cli \
+    && chmod +x /usr/local/bin/pass-cli || true
+
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+COPY secretspec.yaml .
+
+EXPOSE 8080
+
+CMD ["./main"]
